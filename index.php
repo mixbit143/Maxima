@@ -65,9 +65,9 @@ if (isset($_POST['Insert'])){
 }
 //обновление информации
 if (isset($_POST['Update'])){
-    $sing->zapros("Start transaction");
     if($_POST['id']){
         if($_POST['name'] || $_POST['price'] || $_POST['description'] || $_POST['characteristic']) {
+            $sing->zapros("Start transaction");
             if ($_POST['name']) {
                 $sing->zapros("UPDATE Product SET Name = '" . $_POST['name'] . "' WHERE id = '" . $_POST['id'] . "'");
             }
@@ -80,6 +80,7 @@ if (isset($_POST['Update'])){
             if ($_POST['price']) {
                 $sing->zapros("UPDATE price SET price = '" . $_POST['price'] . "' WHERE id_product = '" . $_POST['id'] . "'");
             }
+            $sing->zapros("commit");
         }
         else{
             echo "Укажите один или несколько параметров для изменения";
@@ -89,19 +90,18 @@ if (isset($_POST['Update'])){
     {
             echo "Нужно ввести ID изменяемого продукта, а также параметр который хотите поменять";
     }
-    $sing->zapros("commit");
 }
 
 if (isset($_POST['Delete'])) {//удаление продукта
-    $sing->zapros("Start transaction");
     if($_POST['id']) {
+        $sing->zapros("Start transaction");
         $sing->zapros("DELETE FROM Product WHERE id = " . $_POST['id']);
         $sing->zapros("DELETE FROM price WHERE id_product = " . $_POST['id']);
+        $sing->zapros("commit");
     }
     else{
         echo "Укажите ID товара который нужно удалить";
     }
-    $sing->zapros("commit");
 }
 
 //вывод таблицы целликом
