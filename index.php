@@ -1,18 +1,16 @@
 <form action="" method="post" id="CRUD" method="post">
-    <input type="text" name="id" size="20" value="ID" maxlength="25">
-    <input type="text" name="name" size="20" value="Name" maxlength="25">
-    <input type="text" name="price" size="20" value="Price" maxlength="25">
-    <input type="text" name="description" size="20" value="Description" maxlength="25">
-    <input type="text" name="characteristic" size="20" value="Characteristic" maxlength="25">
+    <p>ID:<input type="text" name="id" size="20" maxlength="25"></p>
+    <p>Наименование:<input type="text" name="name" size="20" value="" maxlength="25"></p>
+    <p>Ценна:<input type="text" name="price" size="20" value="" maxlength="25"></p>
+    <p>Описание:<input type="text" name="description" size="20" value="" maxlength="25"></p>
+    <p>Характеристика:<input type="text" name="characteristic" size="20" value="" maxlength="25"></p>
     <input type="submit" value="Создать" name="Insert">
     <input type="submit" value="Обновить"  name="Update">
     <input type="submit" value="Удалить" name="Delete">
 </form>
 
-
 <?php
-
-class CRUD
+class BD
 {
     public $link;
     public $error;
@@ -30,7 +28,7 @@ class CRUD
     public static function getInstance()//Единожды запускаем подключение
     {
         if (is_null(self::$instance)) {
-            self::$instance = new CRUD();
+            self::$instance = new BD();
         }
         return self::$instance;
     }
@@ -39,7 +37,7 @@ class CRUD
     {
     }
 
-    public function select($query)//Вывод
+    public function zapros($query)//Запрос к БД
     {
         $result = $this->link->query($query) or die($this->link->error . __LINE__);
         if ($result->num_rows > 0) {
@@ -48,81 +46,81 @@ class CRUD
             return FALSE;
         }
     }
-    public function insert($query){//Ввод
-        $insert = $this->link->query($query) or die($this->link->error.__LINE__);
-        if($insert){
-            return $insert;
-        }else{
-            return FALSE;
-        }
-    }
-
-    public function update($query){//Обновление
-        $update = $this->link->query($query) or die($this->link->error.__LINE__);
-        if($update){
-            return $update;
-        }else{
-            return FALSE;
-        }
-    }
-    
-    public function delete($query){ //Удаление
-        $delete = $this->link->query($query) or die($this->link->error.__LINE__);
-        if($delete){
-            return $delete;
-        }else{
-            return FALSE;
-        }
-    }
 }
 
-$sing = CRUD::getInstance();
-
+$sing = BD::getInstance();
+//Добавление новой информации
 if (isset($_POST['Insert'])){
-    $sing->insert("INSERT INTO Product (Name, Price, Description, Characteristic) 
-VALUES ('".$_POST['name']."','".$_POST['price']."','".$_POST['description']."','".$_POST['characteristic']."')");
+    if($_POST['name'] && $_POST['price'] && $_POST['description'] && $_POST['characteristic']) {
+        $sing->zapros("Start transaction");
+        $sing->zapros("INSERT INTO Product (Name, Description, Characteristic) 
+                    VALUES ('" . $_POST['name'] . "','" . $_POST['description'] . "','" . $_POST['characteristic'] . "')");
+        $sing->zapros("INSERT INTO price (id_product,price)
+                    VALUES(LAST_INSERT_ID(),'" . $_POST['price'] . "')");
+        $sing->zapros("commit");
+    }
+    else{
+        echo "Заполнте поля: Наименование,Цена,Описание,Характеристика";
+    }
 }
-
+//обновление информации
 if (isset($_POST['Update'])){
-    $query = "UPDATE Product  SET";
-    if($_POST['name']!= "Name"){
-        $query = $query." Name = '".$_POST['name']."'";
+    $sing->zapros("Start transaction");
+    if($_POST['id']){
+        if($_POST['name'] || $_POST['price'] || $_POST['description'] || $_POST['characteristic']) {
+            if ($_POST['name']) {
+                $sing->zapros("UPDATE Product SET Name = '" . $_POST['name'] . "' WHERE id = '" . $_POST['id'] . "'");
+            }
+            if ($_POST['description']) {
+                $sing->zapros("UPDATE Product SET description = '" . $_POST['description'] . "' WHERE id = '" . $_POST['id'] . "'");
+            }
+            if ($_POST['characteristic']) {
+                $sing->zapros("UPDATE Product SET characteristic = '" . $_POST['characteristic'] . "' WHERE id = '" . $_POST['id'] . "'");
+            }
+            if ($_POST['price']) {
+                $sing->zapros("UPDATE price SET price = '" . $_POST['price'] . "' WHERE id_product = '" . $_POST['id'] . "'");
+            }
+        }
+        else{
+            echo "Укажите один или несколько параметров для изменения";
+        }
     }
-    if($_POST['price']!="Price"){
-        $query= $query.", Price = '".$_POST['price']."'";
+    else
+    {
+            echo "Нужно ввести ID изменяемого продукта, а также параметр который хотите поменять";
     }
-    if($_POST['description']!="Description"){
-        $query= $query.", Description = '".$_POST['description']."'";
-    }
-    if($_POST['characteristic']!="Characteristic"){
-        $query= $query.", Characteristic = '".$_POST['characteristic']."'";
-    }
-    echo ($query." WHERE id = ".$_POST['id']);
-    $sing->update($query." WHERE id = ".$_POST['id']);
+    $sing->zapros("commit");
 }
 
-if (isset($_POST['Delete'])) {
-    $sing->delete("DELETE FROM Product WHERE id = ".$_POST['id']);
+if (isset($_POST['Delete'])) {//удаление продукта
+    $sing->zapros("Start transaction");
+    if($_POST['id']) {
+        $sing->zapros("DELETE FROM Product WHERE id = " . $_POST['id']);
+        $sing->zapros("DELETE FROM price WHERE id_product = " . $_POST['id']);
+    }
+    else{
+        echo "Укажите ID товара который нужно удалить";
+    }
+    $sing->zapros("commit");
 }
 
-
-
-$result = $sing->select("SELECT * FROM Product");
+//вывод таблицы целликом
+$result = $sing->zapros("SELECT * FROM Product left join price on price.id_product=Product.id");
 echo '<table border = 1>
     <tr>
         <th>ID</th>
-        <th>Name</th>
-        <th>Price</th>
-        <th>Description</th>
-        <th>Characteristic</th>
+        <th>Наименование</th>
+        <th>Цена</th>
+        <th>Описание</th>
+        <th>Характеристика</th>
     </tr>';
 while($row = mysqli_fetch_array($result))
 {
     echo '<tr>
                 <th>' . $row[id] . '</th>
                 <th>' . $row[Name] . '</th>
-                <th>' . $row[Price] . '</th>
-                <th>' . $row[Description] . '</th>
-                <th>' . $row[Characteristic] . '</th>
+                <th>' . $row[price] . '</th>
+                <th>' . $row[description] . '</th>
+                <th>' . $row[characteristic] . '</th>
             </tr>';
 }
